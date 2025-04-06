@@ -5,17 +5,21 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.function.BiPredicate;
-import java.util.stream.Collectors;
 import java.io.*;
+
+enum SearchCriterion {
+    BEST_COST,
+    BEST_NODE,
+    BEST_INTERCHANGE,
+    BEST_DISTANCE,
+    BEST_TIME,
+    BEST_ALL
+}
 
 class App {
     private final static int minPath = 1;
@@ -26,21 +30,9 @@ class App {
     private static final Map<String, Integer> interchangeCache = new HashMap<>();
     private static final Map<String, Map<String, Map<String, Integer>>> fareCache = new HashMap<>();
 
-    // private static final TreeSet<Path> bestPathsSet = new TreeSet<>((p1, p2) -> {
-    // // เปรียบเทียบตามเงื่อนไขหลายอย่าง
-    // if (p1.totalDistance != p2.totalDistance) return
-    // Integer.compare(p1.totalDistance, p2.totalDistance);
-    // if (p1.totalCost != p2.totalCost) return Integer.compare(p1.totalCost,
-    // p2.totalCost); // เปรียบเทียบตามค่าใช้จ่าย
-    // if (p1.totalTime != p2.totalTime) return Integer.compare(p1.totalTime,
-    // p2.totalTime); // เปรียบเทียบตามเวลา
-    // if (p1.totalInterChange != p2.totalInterChange) return
-    // Integer.compare(p1.totalInterChange, p2.totalInterChange); //
-    // เปรียบเทียบตามจำนวน interchange
-    // return Integer.compare(p1.nodes.size(), p2.nodes.size()); //
-    // เปรียบเทียบตามจำนวนสถานี
-    // });
     private static final Map<String, List<Path>> bestPathsMap = new HashMap<>();
+
+    private static SearchCriterion searchCriterion = SearchCriterion.BEST_ALL;
 
     private static final String GREEN_FILE = "D:/jimmy/project/bts/bts/src/btsData - green.csv";
     private static final String BLUE_FILE = "D:/jimmy/project/bts/bts/src/btsData - blue.csv";
@@ -463,39 +455,6 @@ class App {
         }
     }
 
-    // private static int getPriceFromFile(List<String> segment, String filePath) {
-    // Map<String, Integer> priceList = new HashMap<>();
-    // try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-    // String line;
-    // boolean isFirstRow = true;
-
-    // while ((line = br.readLine()) != null) {
-    // String[] data = line.split(",");
-
-    // if (isFirstRow) {
-    // for (int i = 1; i < data.length; i++) {
-    // priceList.put(data[i].trim(), i);
-    // }
-    // isFirstRow = false;
-    // } else {
-    // String stationName = data[0].trim();
-    // if (stationName.equals(segment.get(0))) {
-    // String endStation = segment.get(segment.size() - 1);
-    // if (priceList.containsKey(endStation)) {
-    // int colIndex = priceList.get(endStation);
-    // if (colIndex < data.length) {
-    // return Integer.parseInt(data[colIndex].trim());
-    // }
-    // }
-    // }
-    // }
-    // }
-    // } catch (IOException | NumberFormatException e) {
-    // e.printStackTrace();
-    // }
-    // return -1;
-    // }
-
     private static void loadFareFiles() {
         String[] files = { GREEN_FILE, BLUE_FILE, GOLD_FILE, PINK_FILE, YELLOW_FILE, PURPLE_FILE };
         for (String file : files) {
@@ -567,28 +526,6 @@ class App {
         return minInterchange;
     }
 
-    // private static int getInterchangeCount(String target, String nextStation) {
-    // // System.out.println("getInterchangeCount : " + target + ", nextStation : "
-    // + nextStation);
-    // if (target.isEmpty()) return 0;
-
-    // // String currentStation = path.get(path.size() - 1);
-    // String currentLine = getLinePrefix(target);
-    // String nextLine = getLinePrefix(nextStation);
-    // // System.out.println("currentLine : " + target + " ... " + currentLine + ",
-    // nextLine : " + nextLine);
-
-    // if (currentLine.equals(nextLine)) {
-    // return 0; // อยู่ในสายเดียวกันหรือกลุ่มเดียวกันไม่ต้องเปลี่ยน
-    // }
-
-    // Set<String> visited = new HashSet<>();
-    // int minInterchange = findInterchangeRecursive(currentLine, nextLine, visited,
-    // isSameGroup(currentLine, nextLine));
-    // // System.out.println(" :: minInterchange : " + minInterchange);
-    // return minInterchange;
-    // }
-
     private static int findInterchangeRecursive(String currentLine, String targetLine, Set<String> visited,
             boolean sameGroup) {
         if (currentLine.equals(targetLine)) {
@@ -625,7 +562,6 @@ class App {
         Map<String, Integer> interchangeMap = new HashMap<>();
         PriorityQueue<Edge> edgeQueue = new PriorityQueue<>(
                 Comparator.comparingInt(edge -> interchangeMap.getOrDefault(edge.target, Integer.MAX_VALUE)));
-        // List<Path> bestPaths = new ArrayList<>();
         countNodeRunning = 0;
 
         dfs(start, end, new ArrayList<>(Collections.singletonList(start)), 0, 0, 0, 0, edgeQueue,
@@ -636,89 +572,19 @@ class App {
     private static void dfs(String current, String end, List<String> path, int totalDistance, int totalCost,
             int totalTime, int totalInterChange, PriorityQueue<Edge> edgeQueue,
             Map<String, Integer> interchangeMap) {
-        // System.out.println("current : " + current + ", totalDistance : " +
-        // totalDistance + ", totalCost : " + totalCost + ", totalTime : " + totalTime +
-        // ", totalInterChange : " + totalInterChange + ", nodes : " + path.size());
-        // try {
-        // Thread.sleep(100); // หน่วงเวลา 100 มิลลิวินาที
-        // } catch (InterruptedException e) {
-        // Thread.currentThread().interrupt();
-        // }
-
-        // if (!isPromisingPath(totalDistance, totalCost, totalTime, path.size(),
-        // totalInterChange, bestPaths)) {
-        // return;
-        // }
         countNodeRunning++;
 
         if (current.equals(end)) {
             Path newPath = new Path(new ArrayList<>(path), totalDistance, totalCost, totalTime);
             newPath.totalInterChange = splitSegments(path).size();
-            // bestPaths.add(newPath);
             updateBestPaths(newPath);
-            // System.out.println("newPath: ");
-            // Graph.Path node = newPath;
-            // System.out.println("node : " + node.nodes);
-            // System.out.println(", Distance: " + node.totalDistance + ", Cost: " +
-            // node.totalCost + ", Time: " + node.totalTime + ", Nodes: " +
-            // node.nodes.size());
-            // System.out.println("");
             return;
         }
 
-        ///////////////////////////
-        // List<Edge> edges = new ArrayList<>(edgeList.getOrDefault(current, new
-        /////////////////////////// ArrayList<>()));
-        // // edgeQueue.clear();
-        // interchangeMap.clear();
-
-        // // PriorityQueue<Edge> edgeQueue = new
-        // PriorityQueue<>(Comparator.comparingInt(edge ->
-        // interchangeMap.getOrDefault(edge.target, Integer.MAX_VALUE)));
-
-        // for (Edge edge : edges) {
-        // // if (!path.contains(edge.target)) {
-        // interchangeMap.put(edge.target, getInterchangeCount(edge.target, end));
-        // edgeQueue.add(edge);
-        // // }
-        // }
-
-        // while (!edgeQueue.isEmpty()) {
-        // Edge edge = edgeQueue.poll();
-        // path.add(edge.target);
-
-        // List<List<String>> segments = splitSegments(path);
-        // int newTotalCost = getPrice(path, segments);
-
-        // if (isPromisingPath(totalDistance + edge.distance, newTotalCost, totalTime +
-        // edge.time, path.size(), segments.size(), bestPaths)) {
-        // dfs(edge.target, end, path, totalDistance + edge.distance, newTotalCost,
-        // totalTime + edge.time, segments.size(), bestPaths, interchangeMap);
-        // }
-        // path.remove(path.size() - 1);
-        // }
-
-        ////////////////////////////
         List<Edge> edges = new ArrayList<>(edgeList.getOrDefault(current, new ArrayList<>()));
 
-        // if (bestPaths.size() <= 1) {
-        // System.out.print(countNodeRunning + " : ");
-        // System.out.print("path : " + path + ", ");
-        // System.out.print("current : " + current + ", ");
-        // System.out.print("edges : " + edges.stream().map(edge ->
-        // edge.target).collect(Collectors.toList()) + ", ");
-        // }
-
-        // ลบเส้นทางที่เคยผ่านมาแล้ว
         edges.removeIf(edge -> path.contains(edge.target));
 
-        // เรียงลำดับเส้นทางจากจำนวน Interchange ที่ต้องเปลี่ยนมากไปน้อย
-        // Map<String, Integer> interchangeMap = new HashMap<>();
-
-        // interchangeMap.clear();
-        // edges.sort(Comparator.comparingInt(edge ->
-        // interchangeMap.getOrDefault(edge.target, Integer.MAX_VALUE)));
-        // edgeQueue.clear();
         edgeQueue = new PriorityQueue<>(
                 Comparator.comparingInt(edge -> interchangeMap.getOrDefault(edge.target, Integer.MAX_VALUE)));
         for (Edge edge : edges) {
@@ -727,32 +593,13 @@ class App {
                 edgeQueue.add(edge);
             }
         }
-        // if (bestPaths.size() <= 1) {
-        // System.out.print(" interchangeMap : " + interchangeMap + ", ");
-        // }
-
-        // if (bestPaths.size() <= 1) {
-        // System.out
-        // .print("edges after : " + edgeQueue.stream().map(edge ->
-        // edge.target).collect(Collectors.toList()));
-        // System.out.println("");
-        // }
 
         for (Edge edge : edgeQueue) {
-            // System.out.println("edge : " + edge.target);
             if (!path.contains(edge.target)) {
-                // System.out.println("edge : " + edge.target);
                 path.add(edge.target);
 
                 List<List<String>> segments = splitSegments(path);
                 int newTotalCost = getPrice(path, segments);
-                // System.out.print("Path : ");
-                // for (int i = 0; i < path.size(); i++) {
-                // System.out.print(path.get(i));
-                // System.out.print(", ");
-                // }
-                // System.out.println("newTotalCost : " + newTotalCost);
-                // System.out.println("");
 
                 if (isPromisingPath(totalDistance + edge.distance, newTotalCost, totalTime + edge.time, path.size(),
                         segments.size())) {
@@ -764,288 +611,48 @@ class App {
         }
     }
 
-    // private static void updateBestPaths(Path newPath) {
-    // // Update the best path for distance
-    // updateBestPath("bestDistance", newPath, (existingPath, newP) ->
-    // newP.totalDistance <= existingPath.totalDistance);
-
-    // // Update the best path for cost
-    // updateBestPath("bestCost", newPath, (existingPath, newP) -> newP.totalCost <=
-    // existingPath.totalCost);
-
-    // // Update the best path for time
-    // updateBestPath("bestTime", newPath, (existingPath, newP) -> newP.totalTime <=
-    // existingPath.totalTime);
-
-    // // Update the best path for interchanges
-    // updateBestPath("bestInterchange", newPath, (existingPath, newP) ->
-    // newP.totalInterChange <= existingPath.totalInterChange);
-
-    // // Update the best path for the number of nodes
-    // updateBestPath("bestNode", newPath, (existingPath, newP) -> newP.nodes.size()
-    // <= existingPath.nodes.size());
-    // }
-
-    // // Helper method to update a specific best path condition
-    // private static void updateBestPath(String key, Path newPath,
-    // BiPredicate<Path, Path> condition) {
-    // bestPathsMap.compute(key, (k, existingPaths) -> {
-    // if (existingPaths == null) {
-    // existingPaths = new ArrayList<>();
-    // }
-
-    // // Check if the new path is already in the list
-    // boolean isDuplicate = existingPaths.stream().anyMatch(existingPath ->
-    // isEqualPath(existingPath, newPath));
-    // if (isDuplicate) {
-    // return existingPaths; // If the new path is already in the list, do nothing
-    // }
-
-    // // Remove paths that are strictly worse than the new path
-    // existingPaths.removeIf(existingPath -> condition.test(newPath,
-    // existingPath));
-
-    // // Add the new path
-    // existingPaths.add(newPath);
-
-    // return existingPaths;
-    // });
-    // }
-    // private static void updateBestPaths(Path newPath) {
-    // // Update the best path for distance
-    // bestPathsMap.compute("bestDistance", (key, existingPath) -> {
-    // if (existingPath == null || newPath.totalDistance <
-    // existingPath.totalDistance) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // Update the best path for cost
-    // bestPathsMap.compute("bestCost", (key, existingPath) -> {
-    // if (existingPath == null || newPath.totalCost < existingPath.totalCost) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // Update the best path for time
-    // bestPathsMap.compute("bestTime", (key, existingPath) -> {
-    // if (existingPath == null || newPath.totalTime < existingPath.totalTime) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // Update the best path for interchanges
-    // bestPathsMap.compute("bestInterchange", (key, existingPath) -> { // Fixed
-    // typo
-    // if (existingPath == null || newPath.totalInterChange <
-    // existingPath.totalInterChange) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // Update the best path for the number of nodes
-    // bestPathsMap.compute("bestNode", (key, existingPath) -> {
-    // if (existingPath == null || newPath.nodes.size() < existingPath.nodes.size())
-    // {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // Update the best paths for all conditions
-    // bestPathsMap.compute("bestall", (key, existingPaths) -> {
-    // if (existingPaths == null) {
-    // existingPaths = new ArrayList<>();
-    // }
-
-    // // Check if the new path is already in the list
-    // boolean isDuplicate = existingPaths.stream().anyMatch(existingPath ->
-    // isEqualPath(existingPath, newPath));
-    // if (!isDuplicate) {
-    // // Add the new path if it meets any of the conditions
-    // if (existingPaths.isEmpty() ||
-    // newPath.nodes.size() <= existingPaths.get(0).nodes.size() ||
-    // newPath.totalDistance <= existingPaths.get(0).totalDistance ||
-    // newPath.totalCost <= existingPaths.get(0).totalCost ||
-    // newPath.totalTime <= existingPaths.get(0).totalTime ||
-    // newPath.totalInterChange <= existingPaths.get(0).totalInterChange) {
-    // existingPaths.add(newPath);
-    // }
-    // }
-
-    // return existingPaths;
-    // });
-    // }
-
     private static void updateBestPaths(Path newPath) {
-        // System.out.println("bestPathsMap bestall : " + bestPathsMap.get("bestall"));
-
-        updateSingleBest("bestDistance", newPath, Comparator.comparingDouble(a -> a.totalDistance));
-        updateSingleBest("bestCost", newPath, Comparator.comparingDouble(a -> a.totalCost));
-        updateSingleBest("bestTime", newPath, Comparator.comparingDouble(a -> a.totalTime));
-        updateSingleBest("bestInterchange", newPath, Comparator.comparingInt(a -> a.totalInterChange));
-        updateSingleBest("bestNode", newPath, Comparator.comparingInt(a -> a.nodes.size()));
-
-        // Update bestall
-        bestPathsMap.compute("bestall", (key, existingPaths) -> {
+        String key = searchCriterion.name(); // Use the criterion name as the key
+        bestPathsMap.compute(key, (k, existingPaths) -> {
             if (existingPaths == null) {
                 existingPaths = new ArrayList<>();
             }
 
-            boolean isDuplicate = existingPaths.stream().anyMatch(existingPath -> isEqualPath(existingPath, newPath));
-            if (isDuplicate) {
-                return existingPaths;
-            }
-
-            List<Path> updatedPaths = existingPaths.stream()
-                    .filter(existingPath -> newPath.nodes.size() <= existingPath.nodes.size() ||
-                            newPath.totalDistance <= existingPath.totalDistance ||
-                            newPath.totalCost <= existingPath.totalCost ||
-                            newPath.totalTime <= existingPath.totalTime ||
-                            newPath.totalInterChange <= existingPath.totalInterChange)
-                    .collect(Collectors.toList());
-
-            // System.out.println("updatedPaths : " + updatedPaths);
-            updatedPaths.add(newPath);
-            // System.out.println("updatedPaths : " + updatedPaths);
-            return updatedPaths;
-        });
-        // System.out.println("bestPathsMap bestall : " + bestPathsMap.get("bestall"));
-    }
-
-    private static void updateSingleBest(String key, Path newPath, Comparator<Path> comparator) {
-        bestPathsMap.compute(key, (k, existingPaths) -> {
-            if (existingPaths == null || existingPaths.isEmpty()) {
-                return new ArrayList<>(Collections.singletonList(newPath));
-            }
-
-            Path sample = existingPaths.get(0);
-            int compare = comparator.compare(newPath, sample);
-
-            if (compare < 0) {
-                // newPath ดีกว่า → ล้างของเก่าแล้วเก็บ newPath อย่างเดียว
-                return new ArrayList<>(Collections.singletonList(newPath));
-            } else if (compare == 0) {
-                // newPath เท่ากับ → ถ้าไม่ซ้ำก็เพิ่มเข้าไป
-                boolean isDuplicate = existingPaths.stream()
-                        .anyMatch(existingPath -> isEqualPath(existingPath, newPath));
-                if (!isDuplicate) {
-                    existingPaths.add(newPath);
+            existingPaths.removeIf(existingPath -> {
+                switch (searchCriterion) {
+                    case BEST_COST:
+                        return newPath.totalCost < existingPath.totalCost;
+                    case BEST_NODE:
+                        return newPath.nodes.size() < existingPath.nodes.size();
+                    case BEST_INTERCHANGE:
+                        return newPath.totalInterChange < existingPath.totalInterChange;
+                    case BEST_DISTANCE:
+                        return newPath.totalDistance < existingPath.totalDistance;
+                    case BEST_TIME:
+                        return newPath.totalTime < existingPath.totalTime;
+                    case BEST_ALL:
+                        return newPath.nodes.size() < existingPath.nodes.size()
+                                && newPath.totalDistance < existingPath.totalDistance
+                                && newPath.totalCost < existingPath.totalCost
+                                && newPath.totalTime < existingPath.totalTime
+                                && newPath.totalInterChange <= existingPath.totalInterChange;
+                    default:
+                        return newPath.nodes.size() < existingPath.nodes.size()
+                                && newPath.totalDistance < existingPath.totalDistance
+                                && newPath.totalCost < existingPath.totalCost
+                                && newPath.totalTime < existingPath.totalTime
+                                && newPath.totalInterChange <= existingPath.totalInterChange;
                 }
+            });
+
+            boolean isDuplicate = existingPaths.stream().anyMatch(existingPath -> isEqualPath(existingPath, newPath));
+            if (!isDuplicate) {
+                existingPaths.add(newPath); // Add the new path if it's not a duplicate
             }
 
-            // ถ้ามากกว่า → ไม่เพิ่ม
             return existingPaths;
         });
     }
-
-    // private static void updateSingleBest(String key, Path newPath,
-    // Comparator<Path> comparator) {
-    // bestPathsMap.compute(key, (k, existingPaths) -> {
-    // if (existingPaths == null || existingPaths.isEmpty()) {
-    // List<Path> list = new ArrayList<>();
-    // list.add(newPath);
-    // return list;
-    // }
-
-    // Path existing = existingPaths.get(0);
-    // if (comparator.compare(newPath, existing) < 0) {
-    // return new ArrayList<>(Collections.singletonList(newPath));
-    // }
-
-    // return existingPaths;
-    // });
-    // }
-
-    // private static void updateBestPaths(Path newPath) {
-    // // ตรวจสอบและอัปเดตเส้นทางที่ดีที่สุดสำหรับระยะทาง (distance)
-    // bestPathsMap.compute("bestDistance", (key, existingPath) -> {
-
-    // if (existingPath == null || newPath.totalDistance <=
-    // existingPath.totalDistance) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // ตรวจสอบและอัปเดตเส้นทางที่ดีที่สุดสำหรับค่าใช้จ่าย (cost)
-    // bestPathsMap.compute("bestCost", (key, existingPath) -> {
-    // if (existingPath == null || newPath.totalCost <= existingPath.totalCost) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // ตรวจสอบและอัปเดตเส้นทางที่ดีที่สุดสำหรับเวลา (time)
-    // bestPathsMap.compute("bestTime", (key, existingPath) -> {
-    // if (existingPath == null || newPath.totalTime <= existingPath.totalTime) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // ตรวจสอบและอัปเดตเส้นทางที่ดีที่สุดสำหรับสถานีเชื่อม (Interchange)
-    // bestPathsMap.compute("bestInterchange)", (key, existingPath) -> {
-    // if (existingPath == null || newPath.totalInterChange <=
-    // existingPath.totalInterChange) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // ตรวจสอบและอัปเดตเส้นทางที่ดีที่สุดสำหรับจำนวนสถานี (nodes)
-    // bestPathsMap.compute("bestNode", (key, existingPath) -> {
-    // if (existingPath == null || newPath.nodes.size() <=
-    // existingPath.nodes.size()) {
-    // return newPath;
-    // }
-    // return existingPath;
-    // });
-
-    // // ตรวจสอบและอัปเดตเส้นทางที่ดีที่สุดสำหรับทุกเงื่อนไข (all)
-    // bestPathsMap.compute("bestall", (key, existingPaths) -> {
-    // if (existingPaths == null) {
-    // existingPaths = new ArrayList<>();
-    // }
-
-    // // Check if the new path is already in the list
-    // boolean isDuplicate = existingPaths.stream().anyMatch(existingPath ->
-    // isEqualPath(existingPath, newPath));
-    // if (!isDuplicate) {
-    // // Add the new path if it meets the condition
-    // if (existingPaths.isEmpty() ||
-    // newPath.nodes.size() <= existingPaths.get(0).nodes.size() ||
-    // newPath.totalDistance <= existingPaths.get(0).totalDistance ||
-    // newPath.totalCost <= existingPaths.get(0).totalCost ||
-    // newPath.totalTime <= existingPaths.get(0).totalTime ||
-    // newPath.totalInterChange <= existingPaths.get(0).totalInterChange) {
-    // existingPaths.add(newPath);
-    // }
-    // }
-
-    // return existingPaths;
-    // });
-    // }
-
-    // private static void updateBestPaths(Path newPath) {
-    // // เพิ่มเส้นทางใหม่ลงใน TreeSet
-    // bestPathsSet.add(newPath);
-
-    // // จำกัดจำนวนเส้นทางที่ดีที่สุดไว้ที่ `minPath`
-    // if (bestPathsSet.size() > minPath) {
-    // // Path worstPath = bestPathsSet.pollLast(); //
-    // ลบเส้นทางที่แย่ที่สุดออกชั่วคราว
-
-    // // ตรวจสอบว่าเส้นทางที่แย่ที่สุดเท่ากับเส้นทางใหม่หรือไม่
-    // // if (isEqualPath(worstPath, newPath)) {
-    // // bestPathsSet.add(worstPath); // ถ้าไม่เท่ากัน ให้เพิ่มกลับเข้าไป
-    // // }
-    // }
-    // }
 
     private static boolean isEqualPath(Path path1, Path path2) {
         return path1.totalDistance == path2.totalDistance &&
@@ -1054,108 +661,6 @@ class App {
                 path1.totalInterChange == path2.totalInterChange &&
                 path1.nodes.size() == path2.nodes.size();
     }
-
-    // private static void updateBestPaths(Path newPath, List<Path> bestPaths) {
-    // // List to store paths that are strictly worse in all aspects
-    // List<Path> pathsToRemove = new ArrayList<>();
-    // // boolean isWorse = false;
-
-    // // if (bestPaths.size() > minPath) {
-    // // System.out.println("add path : " + newPath.totalCost + ", " +
-    // // newPath.totalTime + ", " + newPath.totalInterChange );
-    // // bestPaths.add(newPath); // Always add the new path first
-    // // }
-    // // Compare each existing path with the new path
-    // for (Path existing : bestPaths) {
-    // if (isWorsePath(existing, newPath)) {
-    // // System.out.println("remove path : " + existing.totalCost + ", " +
-    // // existing.totalTime + ", " + existing.totalInterChange );
-    // pathsToRemove.add(existing);
-    // // isWorse = true; // Mark that we found a worse path
-    // } else {
-    // // Check if the new path is worse than the existing path
-    // if (isWorsePath(newPath, existing)) {
-    // pathsToRemove.add(newPath); // Mark the new path for removal
-    // break; // No need to check further, we found a worse path
-    // }
-    // }
-    // }
-    // // Remove strictly worse paths, but ensure at least one path remains
-    // if (pathsToRemove.size() > 0) {
-    // bestPaths.removeAll(pathsToRemove);
-    // }
-    // // System.out.println("bestPaths after remove : " + bestPaths.size());
-    // // for (Path path : bestPaths) {
-    // // System.out.println("Best Path " + bestPaths.indexOf(path) + ": " +
-    // "Distance:
-    // // " + path.totalDistance + ", Cost: " + path.totalCost + ", Time: " +
-    // // path.totalTime + ", Interchanges: " + path.totalInterChange + ", Nodes: "
-    // +
-    // // path.nodes.size());
-    // // }
-    // }
-
-    private static boolean isWorsePath(Path existing, Path newPath) {
-        // System.out.print("totalCost" + " : " + existing.totalCost + " > " +
-        // newPath.totalCost + ", totalTime : " + existing.totalTime + " > " +
-        // newPath.totalTime + ", totalInterChange : " + existing.totalInterChange + " >
-        // " + newPath.totalInterChange + ", nodes : " + existing.nodes.size() + " > " +
-        // newPath.nodes.size());
-        boolean result =
-                // existing.totalDistance >= newPath.totalDistance &&
-                existing.totalCost >= newPath.totalCost &&
-                        existing.totalTime >= newPath.totalTime &&
-                        existing.totalInterChange >= newPath.totalInterChange &&
-                        existing.nodes.size() > newPath.nodes.size()
-        // ||
-        // !(
-        // // existing.totalDistance == newPath.totalDistance &&
-        // existing.totalCost == newPath.totalCost &&
-        // existing.totalTime == newPath.totalTime &&
-        // existing.totalInterChange == newPath.totalInterChange &&
-        // existing.nodes.size() == newPath.nodes.size()
-        // )
-        ;
-        // System.out.println(" :: result : " + result);
-        return result;
-    }
-
-    // private static boolean isPromisingPath(int totalDistance, int totalCost, int
-    // totalTime, int nodeCount, int totalInterChange, List<Path> bestPaths) {
-    // if (bestPaths.size() < minPath)
-    // return true;
-
-    // for (Path best : bestPaths) {
-    // if (totalDistance < best.totalDistance ||
-    // totalCost < best.totalCost ||
-    // totalTime < best.totalTime ||
-    // totalInterChange < best.totalInterChange ||
-    // nodeCount < best.nodes.size() ||
-    // (totalDistance == best.totalDistance && totalCost == best.totalCost &&
-    // totalTime == best.totalTime && totalInterChange == best.totalInterChange &&
-    // nodeCount == best.nodes.size())) {
-    // return true;
-    // }
-    // }
-    // return false;
-    // }
-    // private static boolean isPromisingPath(int totalDistance, int totalCost, int
-    // totalTime, int nodeCount,
-    // int totalInterChange) {
-    // if (bestPathsSet.size() < minPath)
-    // return true;
-
-    // for (Path best : bestPathsSet) {
-    // if (totalDistance >= best.totalDistance &&
-    // totalCost >= best.totalCost &&
-    // totalTime >= best.totalTime &&
-    // totalInterChange >= best.totalInterChange &&
-    // nodeCount >= best.nodes.size()) {
-    // return false; // Early exit if the path is worse in all aspects
-    // }
-    // }
-    // return true;
-    // }
 
     private static boolean isPromisingPath(int totalDistance, int totalCost, int totalTime, int nodeCount,
             int totalInterChange) {
@@ -1168,12 +673,51 @@ class App {
         // ตรวจสอบว่าเส้นทางใหม่แย่กว่าทุกเส้นทางใน bestPathsMap หรือไม่
         for (List<Path> bestPaths : bestPathsMap.values()) {
             for (Path best : bestPaths) {
-                if (totalDistance >= best.totalDistance &&
-                        totalCost >= best.totalCost &&
-                        totalTime >= best.totalTime &&
-                        totalInterChange >= best.totalInterChange &&
-                        nodeCount >= best.nodes.size()) {
-                    return false; // หากเส้นทางใหม่แย่กว่าทุกเงื่อนไข ให้ return false
+                switch (searchCriterion) {
+                    case BEST_COST:
+                        if (totalCost >= best.totalCost) {
+                            return false;
+                        }
+                        break;
+                    case BEST_NODE:
+                        if (nodeCount >= best.nodes.size()) {
+                            return false;
+                        }
+                        break;
+                    case BEST_INTERCHANGE:
+                        if (totalInterChange >= best.totalInterChange) {
+                            return false;
+                        }
+                        break;
+                    case BEST_DISTANCE:
+                        if (totalDistance >= best.totalDistance) {
+                            return false;
+                        }
+                        break;
+                    case BEST_TIME:
+                        if (totalTime >= best.totalTime) {
+                            return false;
+                        }
+                        break;
+                    case BEST_ALL:
+                        if (totalDistance > best.totalDistance &&
+                                totalCost > best.totalCost &&
+                                totalTime > best.totalTime &&
+                                totalInterChange > best.totalInterChange &&
+                                nodeCount > best.nodes.size()) {
+                            return false; // หากเส้นทางใหม่แย่กว่าทุกเงื่อนไข ให้ return false
+                        }
+                        break;
+                    default:
+                        // any other case default BEST_ALL
+                        if (totalDistance > best.totalDistance &&
+                                totalCost > best.totalCost &&
+                                totalTime > best.totalTime &&
+                                totalInterChange > best.totalInterChange &&
+                                nodeCount > best.nodes.size()) {
+                            return false;
+                        }
+                        break;
                 }
             }
         }
@@ -1182,8 +726,8 @@ class App {
     }
 
     public static void main(String[] args) throws Exception {
-        String start = "";
-        String end = "";
+        String start;
+        String end;
 
         initStation();
         loadFareFiles();
@@ -1198,6 +742,42 @@ class App {
 
         try (Scanner s = new Scanner(System.in)) {
             while (true) {
+                System.out.println("");
+                System.out.println("");
+                System.out.println("Select Search Criterion:");
+                System.out.println("1. Best Cost");
+                System.out.println("2. Best Node");
+                System.out.println("3. Best Interchange");
+                System.out.println("4. Best Distance");
+                System.out.println("5. Best Time");
+                System.out.println("6. Best All");
+                System.out.print("Enter your choice (1-5): ");
+                int choice = Integer.parseInt(s.nextLine());
+
+                switch (choice) {
+                    case 1:
+                        searchCriterion = SearchCriterion.BEST_COST;
+                        break;
+                    case 2:
+                        searchCriterion = SearchCriterion.BEST_NODE;
+                        break;
+                    case 3:
+                        searchCriterion = SearchCriterion.BEST_INTERCHANGE;
+                        break;
+                    case 4:
+                        searchCriterion = SearchCriterion.BEST_DISTANCE;
+                        break;
+                    case 5:
+                        searchCriterion = SearchCriterion.BEST_TIME;
+                        break;
+                    case 6:
+                        searchCriterion = SearchCriterion.BEST_ALL;
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Defaulting to Best All.");
+                        searchCriterion = SearchCriterion.BEST_ALL;
+                }
+
                 System.out.println("");
                 System.out.print("Select Origin: ");
                 start = s.nextLine();
@@ -1231,59 +811,16 @@ class App {
                 System.out.println("Result Paths:");
                 System.out.println("------------------------------------------------------------------------------");
 
-                // for (Map.Entry<String, List<Path>> entry : bestPathsMap.entrySet()) {
-                //     String key = entry.getKey();
-                //     List<Path> paths = entry.getValue();
-                //     for (Path path : paths) {
-                //         System.out.println("Path " + key + "\n: " + path.nodes);
-                //         System.out
-                //                 .println(": Distance: " + path.totalDistance + ", Cost: " + path.totalCost + ", Time: "
-                //                         + path.totalTime + ", Nodes: " + path.nodes.size() + ", Intechanges: "
-                //                         + path.totalInterChange + "\n");
-                //     }
-                //     System.out
-                //             .println("------------------------------------------------------------------------------");
-                //     System.out.println("");
-                // }
-                for (Map.Entry<String, List<Path>> entry : bestPathsMap.entrySet()) {
-                    String key = entry.getKey();
-                    List<Path> paths = entry.getValue();
-                    
-                    // Print section header for each key
-                    System.out.println("-------------------------------------------------");
-                    System.out.println("Key: " + key);
-                    System.out.println("-------------------------------------------------");
-                
-                    // Loop through each path in the list of paths for this key
-                    for (Path path : paths) {
-                        System.out.println("Path:");
-                        // Print nodes in a readable format
-                        System.out.println("  Nodes: " + path.nodes);
-                
-                        // Pretty print with formatting for numbers (two decimal places for distance, cost, and time)
-                        System.out.println("  Distance: "+path.totalDistance+", Cost: "+path.totalCost+", Time: "+path.totalTime+", Nodes Count: "+path.nodes.size()+", Interchanges: "+path.totalInterChange);
-
-                        
-                        System.out.println("-------------------------------------------------");
+                for (Map.Entry<String, List<Path>> entry : kPaths.entrySet()) {
+                    System.out.println("Criterion: " + entry.getKey());
+                    for (Path path : entry.getValue()) {
+                        System.out.println("Path: " + path.nodes);
+                        System.out.println("Distance: " + path.totalDistance + ", Cost: " + path.totalCost +
+                                ", Time: " + path.totalTime + ", Nodes: " + path.nodes.size() +
+                                ", Interchanges: " + path.totalInterChange);
+                        System.out.println("");
                     }
-                
-                    System.out.println(); // Blank line for separation
                 }
-                
-                
-
-                // int i = 1;
-                // for (Path path : kPaths) {
-                // System.out.println("Path " + i + ": " + path.nodes);
-                // System.out.println(": Distance: " + path.totalDistance + ", Cost: " +
-                // path.totalCost + ", Time: "
-                // + path.totalTime + ", Nodes: " + path.nodes.size() + ", Intechanges: "
-                // + path.totalInterChange);
-                // System.out
-                // .println("------------------------------------------------------------------------------");
-                // System.out.println("");
-                // i++;
-                // }
             }
         }
     }
