@@ -30,7 +30,7 @@ class App {
     private static final Map<String, Integer> interchangeCache = new HashMap<>();
     private static final Map<String, Map<String, Map<String, Integer>>> fareCache = new HashMap<>();
 
-    private static final Map<String, List<Path>> bestPathsMap = new HashMap<>();
+    private static Map<String, List<Path>> bestPathsMap = new HashMap<>();
 
     private static SearchCriterion searchCriterion = SearchCriterion.BEST_ALL;
 
@@ -617,7 +617,42 @@ class App {
             if (existingPaths == null) {
                 existingPaths = new ArrayList<>();
             }
-
+    
+            if (!existingPaths.isEmpty()) {
+                boolean isBetter = existingPaths.stream().allMatch(existingPath -> {
+                    switch (searchCriterion) {
+                        case BEST_COST:
+                            return newPath.totalCost <= existingPath.totalCost;
+                        case BEST_NODE:
+                            return newPath.nodes.size() <= existingPath.nodes.size();
+                        case BEST_INTERCHANGE:
+                            return newPath.totalInterChange <= existingPath.totalInterChange;
+                        case BEST_DISTANCE:
+                            return newPath.totalDistance <= existingPath.totalDistance;
+                        case BEST_TIME:
+                            return newPath.totalTime <= existingPath.totalTime;
+                        case BEST_ALL:
+                            return newPath.nodes.size() <= existingPath.nodes.size()
+                                    || newPath.totalDistance <= existingPath.totalDistance
+                                    || newPath.totalCost <= existingPath.totalCost
+                                    || newPath.totalTime <= existingPath.totalTime
+                                    || newPath.totalInterChange < existingPath.totalInterChange
+                                    ;
+                        default:
+                            return newPath.nodes.size() <= existingPath.nodes.size()
+                                    || newPath.totalDistance <= existingPath.totalDistance
+                                    || newPath.totalCost <= existingPath.totalCost
+                                    || newPath.totalTime <= existingPath.totalTime
+                                    || newPath.totalInterChange < existingPath.totalInterChange
+                                    ;
+                    }
+                });
+        
+                if (!isBetter) {
+                    return existingPaths;
+                }
+            }
+    
             existingPaths.removeIf(existingPath -> {
                 switch (searchCriterion) {
                     case BEST_COST:
@@ -635,31 +670,31 @@ class App {
                                 && newPath.totalDistance < existingPath.totalDistance
                                 && newPath.totalCost < existingPath.totalCost
                                 && newPath.totalTime < existingPath.totalTime
-                                && newPath.totalInterChange <= existingPath.totalInterChange;
+                                && newPath.totalInterChange <= existingPath.totalInterChange
+                                ;
                     default:
                         return newPath.nodes.size() < existingPath.nodes.size()
                                 && newPath.totalDistance < existingPath.totalDistance
                                 && newPath.totalCost < existingPath.totalCost
                                 && newPath.totalTime < existingPath.totalTime
-                                && newPath.totalInterChange <= existingPath.totalInterChange;
+                                && newPath.totalInterChange <= existingPath.totalInterChange
+                                ;
                 }
             });
-
-            boolean isDuplicate = existingPaths.stream().anyMatch(existingPath -> isEqualPath(existingPath, newPath));
-            if (!isDuplicate) {
-                existingPaths.add(newPath); // Add the new path if it's not a duplicate
-            }
-
+    
+            existingPaths.add(newPath);
+    
+            // for (int i = 0; i < existingPaths.size(); i++) {
+            //     Path existingPath = existingPaths.get(i);
+            //     System.out.println("Path " + (i + 1) + ": " + ", Distance: "
+            //             + existingPath.totalDistance + ", Cost: " + existingPath.totalCost + ", Time: "
+            //             + existingPath.totalTime + ", Interchange: " + existingPath.totalInterChange + ", Nodes: "
+            //             + existingPath.nodes.size());
+            // }
+            // System.out.println("");
+    
             return existingPaths;
         });
-    }
-
-    private static boolean isEqualPath(Path path1, Path path2) {
-        return path1.totalDistance == path2.totalDistance &&
-                path1.totalCost == path2.totalCost &&
-                path1.totalTime == path2.totalTime &&
-                path1.totalInterChange == path2.totalInterChange &&
-                path1.nodes.size() == path2.nodes.size();
     }
 
     private static boolean isPromisingPath(int totalDistance, int totalCost, int totalTime, int nodeCount,
@@ -675,27 +710,27 @@ class App {
             for (Path best : bestPaths) {
                 switch (searchCriterion) {
                     case BEST_COST:
-                        if (totalCost >= best.totalCost) {
+                        if (totalCost > best.totalCost) {
                             return false;
                         }
                         break;
                     case BEST_NODE:
-                        if (nodeCount >= best.nodes.size()) {
+                        if (nodeCount > best.nodes.size()) {
                             return false;
                         }
                         break;
                     case BEST_INTERCHANGE:
-                        if (totalInterChange >= best.totalInterChange) {
+                        if (totalInterChange > best.totalInterChange) {
                             return false;
                         }
                         break;
                     case BEST_DISTANCE:
-                        if (totalDistance >= best.totalDistance) {
+                        if (totalDistance > best.totalDistance) {
                             return false;
                         }
                         break;
                     case BEST_TIME:
-                        if (totalTime >= best.totalTime) {
+                        if (totalTime > best.totalTime) {
                             return false;
                         }
                         break;
@@ -742,6 +777,8 @@ class App {
 
         try (Scanner s = new Scanner(System.in)) {
             while (true) {
+                bestPathsMap = new HashMap<>();
+
                 System.out.println("");
                 System.out.println("");
                 System.out.println("Select Search Criterion:");
@@ -751,7 +788,7 @@ class App {
                 System.out.println("4. Best Distance");
                 System.out.println("5. Best Time");
                 System.out.println("6. Best All");
-                System.out.print("Enter your choice (1-5): ");
+                System.out.print("Enter your choice (1-6): ");
                 int choice = Integer.parseInt(s.nextLine());
 
                 switch (choice) {
